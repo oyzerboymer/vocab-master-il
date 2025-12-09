@@ -6,13 +6,22 @@
     <title>VocabMaster</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-      /* תיקון קריטי: מכריח את האפליקציה לתפוס 100% גובה */
-      html, body, #root {
+      /* נעילה הרמטית של המסך */
+      html, body {
         height: 100%;
         width: 100%;
         margin: 0;
         padding: 0;
-        overflow: hidden; /* מונע גלילה מיותרת של כל העמוד */
+        overflow: hidden; /* מונע גלילה של כל העמוד */
+        position: fixed; /* התיקון החזק לניידים */
+        inset: 0;
+      }
+      /* נותן לאפליקציה לנהל את הגלילה הפנימית */
+      #root {
+        height: 100%;
+        width: 100%;
+        overflow-y: auto; 
+        -webkit-overflow-scrolling: touch; /* גלילה חלקה באייפון */
       }
     </style>
   </head>
