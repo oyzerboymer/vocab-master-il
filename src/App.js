@@ -74,7 +74,7 @@ const LoginView = ({ onLogin }) => {
     };
 
     return (
-        <div className="h-screen bg-white flex flex-col items-center justify-center p-8 text-center" dir="rtl">
+        <div className="h-full bg-white flex flex-col items-center justify-center p-8 text-center" dir="rtl">
             <div className="mb-8 bg-indigo-50 p-6 rounded-full animate-bounce">
                 <Brain size={64} className="text-indigo-600" />
             </div>
@@ -184,7 +184,7 @@ const SwipeGame = ({ progress, updateWord, setView }) => {
 
   if (showSummary) {
       return (
-          <div className="h-screen bg-gray-50 flex flex-col text-right" dir="rtl">
+          <div className="h-full bg-gray-50 flex flex-col text-right" dir="rtl">
               <Header title="סיכום סשן" onBack={() => setView('GAMES_MENU')} subtitle="תוצאות המיון" />
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {sessionResults.map((item, idx) => {
@@ -213,7 +213,7 @@ const SwipeGame = ({ progress, updateWord, setView }) => {
       );
   }
 
-  if (queue.length === 0) return <div className="h-screen flex items-center justify-center bg-gray-50 text-indigo-600"><Loader2 className="animate-spin"/></div>;
+  if (queue.length === 0) return <div className="h-full flex items-center justify-center bg-gray-50 text-indigo-600"><Loader2 className="animate-spin"/></div>;
 
   const word = queue[current];
   const dynamicFontSize = `${Math.min(3.5, 18 / word.english.length)}rem`;
@@ -225,7 +225,7 @@ const SwipeGame = ({ progress, updateWord, setView }) => {
   else if (isPeeked) { cardStyle = "bg-amber-50 border-amber-100"; }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
+    <div className="h-full flex flex-col bg-gray-50" dir="rtl">
        <Header title="Swipe" onBack={() => setView('GAMES_MENU')} subtitle={`${current + 1} מתוך ${queue.length}`} />
        
       <div className="flex-1 relative flex items-center justify-center perspective-1000 p-6 overflow-hidden">
@@ -369,7 +369,7 @@ const QuizGame = ({ progress, updateWord, setView }) => {
 
     if (showSummary) {
         return (
-          <div className="h-screen bg-gray-50 flex flex-col text-right" dir="rtl">
+          <div className="h-full bg-gray-50 flex flex-col text-right" dir="rtl">
               <Header title="סיכום מבחן" onBack={() => setView('GAMES_MENU')} subtitle={`ציון: ${score} מתוך 20`} />
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {sessionResults.map((item, idx) => {
@@ -400,7 +400,7 @@ const QuizGame = ({ progress, updateWord, setView }) => {
         );
     }
 
-    if (questions.length === 0) return <div className="flex h-screen items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-indigo-600"/></div>;
+    if (questions.length === 0) return <div className="flex h-full items-center justify-center bg-gray-50"><Loader2 className="animate-spin text-indigo-600"/></div>;
     const q = questions[current];
     
     const TimerDisplay = () => (
@@ -411,7 +411,7 @@ const QuizGame = ({ progress, updateWord, setView }) => {
     );
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50 text-right overflow-hidden" dir="rtl">
+        <div className="h-full flex flex-col bg-gray-50 text-right overflow-hidden" dir="rtl">
             <Header 
                 title="Quiz" 
                 onBack={() => setView('GAMES_MENU')} 
@@ -599,7 +599,7 @@ const MatchGame = ({ progress, updateWord, setView }) => {
 
     if (showSummary) {
         return (
-            <div className="h-screen bg-gray-50 flex flex-col text-right" dir="rtl">
+            <div className="h-full bg-gray-50 flex flex-col text-right" dir="rtl">
                 <Header title="סיכום משחק" onBack={() => setView('GAMES_MENU')} subtitle={`בוצעו ${matchesFound} התאמות`} />
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
                     {sessionResults.length === 0 && <div className="text-center text-gray-400 mt-10">לא בוצעו מהלכים.</div>}
@@ -627,7 +627,7 @@ const MatchGame = ({ progress, updateWord, setView }) => {
     }
 
     return (
-        <div className="h-screen bg-gray-50 flex flex-col text-right" dir="rtl">
+        <div className="h-full bg-gray-50 flex flex-col text-right" dir="rtl">
              <Header 
                 title="Match" 
                 onBack={() => setShowSummary(true)} 
@@ -712,7 +712,7 @@ const SpellingGame = ({ progress, updateWord, setView }) => {
 
     if (queue.length === 0) {
         return (
-            <div className="h-screen bg-gray-50 flex flex-col items-center justify-center text-center p-6" dir="rtl">
+            <div className="h-full bg-gray-50 flex flex-col items-center justify-center text-center p-6" dir="rtl">
                 <div className="bg-indigo-50 p-6 rounded-full mb-6">
                     <Edit3 size={48} className="text-indigo-600"/>
                 </div>
@@ -728,7 +728,7 @@ const SpellingGame = ({ progress, updateWord, setView }) => {
 
     if (showSummary) {
         return (
-            <div className="h-screen bg-gray-50 flex flex-col text-right" dir="rtl">
+            <div className="h-full bg-gray-50 flex flex-col text-right" dir="rtl">
                 <Header title="סיכום איות" onBack={() => setView('TASKS')} subtitle={`הצלחות: ${score} מתוך ${queue.length}`} />
                 <div className="flex-1 flex flex-col items-center justify-center p-6">
                     <Trophy size={64} className="text-yellow-500 mb-6 animate-bounce"/>
@@ -743,7 +743,7 @@ const SpellingGame = ({ progress, updateWord, setView }) => {
     const word = queue[current];
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
+        <div className="h-full flex flex-col bg-gray-50" dir="rtl">
             <Header title="אימון איות" onBack={() => setView('TASKS')} subtitle={`${current + 1} / ${queue.length}`} />
 
             <div className="flex-1 flex flex-col p-6 items-center">
@@ -830,7 +830,7 @@ const WordBankView = ({ setView, progress, updateWord }) => {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
+        <div className="h-full flex flex-col bg-gray-50" dir="rtl">
             <Header title="מאגר מילים" onBack={() => setView('DASHBOARD')} subtitle={`סה"כ ${stats.ALL} מילים`} />
 
             <div className="bg-white p-4 shadow-sm z-10 space-y-3">
@@ -970,7 +970,7 @@ const ProgressView = ({ setView, progress, updateWord }) => {
     );
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
+        <div className="h-full flex flex-col bg-gray-50" dir="rtl">
             <Header 
                 title={showSpellingOnly ? "רשימת איות" : "התקדמות"} 
                 onBack={() => setView('DASHBOARD')} 
@@ -1146,7 +1146,7 @@ const TasksView = ({ setView, progress }) => {
     };
 
     return (
-        <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
+        <div className="h-full flex flex-col bg-gray-50" dir="rtl">
             <Header title="משימות ותרגול" onBack={() => setView('DASHBOARD')} subtitle="כלים ללמידה אקטיבית" />
             
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
@@ -1251,7 +1251,7 @@ const TasksView = ({ setView, progress }) => {
 // =================================================================================
 
 const GamesMenuView = ({ setView }) => (
-    <div className="h-screen flex flex-col bg-gray-50" dir="rtl">
+    <div className="h-full flex flex-col bg-gray-50" dir="rtl">
         <Header title="מבדקים ומשחקים" onBack={() => setView('DASHBOARD')} subtitle="בחר משחק" />
         <div className="p-6 space-y-4">
              <Button variant="outline" onClick={() => setView('GAME_SWIPE')} className="w-full py-6 text-xl justify-between px-6 group border-b-4 active:border-b-2 active:translate-y-0.5">
@@ -1291,7 +1291,7 @@ const DashboardView = ({ setView, user }) => {
     );
 
     return (
-        <div className="h-screen bg-gray-50 flex flex-col font-sans" dir="rtl">
+        <div className="h-full bg-gray-50 flex flex-col font-sans" dir="rtl">
             <div className="bg-white p-6 pt-12 pb-6 shadow-sm border-b border-gray-100 sticky top-0 z-10">
                 <div className="flex justify-between items-center mb-4">
                     <div>
