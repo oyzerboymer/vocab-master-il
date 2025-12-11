@@ -1,53 +1,24 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  BookOpen, Zap, Brain, Settings,
-  ChevronLeft, Trophy, Check, X, Eye,
+import React, { useState, useEffect } from 'react';
+import { 
+  BookOpen, Zap, Brain, Settings, 
+  ChevronLeft, Trophy, Check, X, Eye, 
   Loader2, Edit3, Lightbulb, Clock,
   Gamepad2, ClipboardList, TrendingUp, Play,
   Search as SearchIcon, CircleDashed, Languages, Download, Copy,
-  User, ArrowRight, AlertTriangle, RotateCcw
+  User, ArrowRight
 } from 'lucide-react';
 
 // ייבוא המילים מקובץ הדאטה
-import { MASTER_WORDS } from './data';
+import { MASTER_WORDS } from './data'; 
 
-// --- CONSTANTS & CONFIG ---
-const DEFAULT_SETTINGS = {
-  timerDuration: 5,        // זמן למענה ב-Quiz (שניות)
-  panicThreshold: 1.0,     // מתחת לזמן זה נחשב "לחץ"
-  showSettings: false
+// הגדרת הסטטוסים
+const STATUS = {
+  UNSEEN: 'UNSEEN',
+  LEARN: 'LEARN',
+  WEAK: 'WEAK',
+  KNOWN: 'KNOWN',
+  DONE: 'DONE'
 };
-
-// --- VISUAL HELPERS (תרגום ניקוד לסטטוס ויזואלי) ---
-// 0 = UNSEEN
-// 1-2 = LEARN
-// 3-4 = WEAK
-// 5-9 = KNOWN
-// 10+ = DONE / MASTERY
-
-const getVisualStatus = (score) => {
-  if (score === 0) return 'UNSEEN';
-  if (score <= 2) return 'LEARN';
-  if (score <= 4) return 'WEAK';
-  if (score >= 10) return 'DONE'; // DONE נשמר למצטיינים
-  return 'KNOWN';
-};
-
-const getVisualColor = (score) => {
-  if (score === 0) return 'gray'; // UNSEEN
-  if (score <= 2) return 'indigo'; // LEARN
-  if (score <= 4) return 'amber'; // WEAK
-  if (score >= 10) return 'purple'; // DONE (היה ירוק כהה או משהו אחר, נשתמש בסגול למאסטר)
-  return 'green'; // KNOWN
-};
-
-// פונקציית עזר לקבלת צבעי Tailwind מלאים (bg/text/border)
-const getStatusClasses = (score) => {
-    const color = getVisualColor(score);
-    return `bg-${color}-50 text-${color}-700 border-${color}-200`;
-};
-
-// --- UI COMPONENTS ---
 
 const Button = ({ children, onClick, variant = 'primary', className = '', disabled }) => {
   const base = "px-4 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2 select-none outline-none focus:outline-none ring-0 active:scale-95";
@@ -59,18 +30,18 @@ const Button = ({ children, onClick, variant = 'primary', className = '', disabl
     warning: "bg-amber-100 text-amber-700 hover:bg-amber-200 border border-amber-200"
   };
   return (
-    <button
-        disabled={disabled}
-        onClick={onClick}
+    <button 
+        disabled={disabled} 
+        onClick={onClick} 
         className={`${base} ${variants[variant]} ${className} ${disabled ? 'opacity-50 grayscale' : ''}`}
-        style={{ WebkitTapHighlightColor: 'transparent' }}
+        style={{ WebkitTapHighlightColor: 'transparent' }} 
     >
         {children}
     </button>
   );
 };
 
-const Header = ({ title, onBack, subtitle, extraLeft, onSettings }) => (
+const Header = ({ title, onBack, subtitle, extraLeft }) => (
     <div className="bg-white px-4 py-4 shadow-sm border-b border-gray-100 sticky top-0 z-50 flex items-center justify-between" dir="rtl">
         <div className="flex items-center gap-3">
             {onBack && (
@@ -83,58 +54,11 @@ const Header = ({ title, onBack, subtitle, extraLeft, onSettings }) => (
                 {subtitle && <p className="text-xs text-gray-400 mt-1 font-medium">{subtitle}</p>}
             </div>
         </div>
-        <div className="flex items-center gap-2 pl-1">
-            {extraLeft}
-            {onSettings && (
-                <button onClick={onSettings} className="p-2 text-gray-400 hover:text-indigo-600">
-                    <Settings size={20} />
-                </button>
-            )}
-        </div>
+        {extraLeft && <div className="pl-1">{extraLeft}</div>}
     </div>
 );
 
-// מודאל הגדרות פשוט
-const SettingsModal = ({ settings, setSettings, onClose }) => {
-    if (!settings.showSettings) return null;
-    return (
-        <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4 backdrop-blur-sm" dir="rtl" onClick={onClose}>
-            <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-2xl animate-in fade-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-                <h3 className="text-lg font-bold mb-4 flex items-center gap-2"><Settings size={18}/> הגדרות משחק</h3>
-                <div className="space-y-6">
-                    <div>
-                        <div className="flex justify-between mb-2">
-                             <label className="text-sm font-medium text-gray-700">זמן למענה (שניות)</label>
-                             <span className="font-bold text-indigo-600">{settings.timerDuration}</span>
-                        </div>
-                        <input 
-                            type="range" min="3" max="15" 
-                            value={settings.timerDuration} 
-                            onChange={(e) => setSettings({...settings, timerDuration: Number(e.target.value)})}
-                            className="w-full accent-indigo-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                    </div>
-                    <div>
-                        <div className="flex justify-between mb-2">
-                             <label className="text-sm font-medium text-gray-700">סף לחץ (שניות)</label>
-                             <span className="font-bold text-red-500">{settings.panicThreshold}</span>
-                        </div>
-                        <input 
-                            type="range" min="0.5" max="3" step="0.5"
-                            value={settings.panicThreshold} 
-                            onChange={(e) => setSettings({...settings, panicThreshold: Number(e.target.value)})}
-                            className="w-full accent-red-500 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
-                        />
-                        <p className="text-xs text-gray-400 mt-1">מתחת לזמן זה, טעות גוררת ענישה כפולה.</p>
-                    </div>
-                </div>
-                <Button onClick={onClose} className="w-full mt-6">שמור וסגור</Button>
-            </div>
-        </div>
-    );
-};
-
-const getQuizFontSize = (text) => text.length > 8 ? '1.6rem' : '2.1rem';
+const getQuizFontSize = (text) => text.length > 8 ? '1.6rem' : '2.1rem'; 
 
 // =================================================================================
 // LOGIN VIEW
@@ -188,9 +112,9 @@ const LoginView = ({ onLogin }) => {
 };
 
 // =================================================================================
-// GAME 1: SWIPE GAME (לוגיקה מעודכנת 3.2)
+// GAME 1: SWIPE GAME
 // =================================================================================
-const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
+const SwipeGame = ({ progress, updateWord, setView }) => {
   const [queue, setQueue] = useState([]);
   const [sessionResults, setSessionResults] = useState([]);
   const [showSummary, setShowSummary] = useState(false);
@@ -202,71 +126,29 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
   const [isPeeked, setIsPeeked] = useState(false); 
   const [feedback, setFeedback] = useState(null); 
 
-  // --- ALGORITHM: SMART SWIPE SELECTION ---
   useEffect(() => {
-    const totalWords = words.length;
-    const touchedWords = words.filter(w => w.score > 0).length;
-    const progressPercent = Math.round((touchedWords / totalWords) * 100);
-    const unseen = words.filter(w => w.score === 0);
-    
-    // אם מעל 80% התקדמות - מערבבים גם אם נשאר Unseen
-    const shouldMix = progressPercent > 80;
-
-    let pool = [];
-
-    if (unseen.length > 0 && !shouldMix) {
-       // עדיפות עליונה לחדשים
-       pool = unseen.slice(0, 20);
-    } else {
-       // תמהיל חכם
-       const learn = words.filter(w => w.score >= 1 && w.score <= 2);
-       const weak = words.filter(w => w.score >= 3 && w.score <= 4);
-       const known = words.filter(w => w.score >= 5).sort((a,b) => a.score - b.score); // אלו עם הניקוד הנמוך ב-KNOWN
-
-       pool = [...weak.slice(0, 8), ...learn.slice(0, 8)];
-       const remaining = 20 - pool.length;
-       if (remaining > 0 && known.length > 0) {
-           pool = [...pool, ...known.slice(0, remaining)];
-       }
-       if (pool.length < 20 && unseen.length > 0) {
-           pool = [...pool, ...unseen.slice(0, 20 - pool.length)];
-       }
-    }
-    
-    setQueue(pool.sort(() => Math.random() - 0.5));
+    const pool = MASTER_WORDS.filter(w => (progress[w.id]?.status || STATUS.UNSEEN) === STATUS.UNSEEN);
+    if (pool.length < 5) pool.push(...MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.LEARN));
+    if (pool.length === 0) pool.push(...MASTER_WORDS);
+    setQueue(pool.sort(() => Math.random() - 0.5).slice(0, 20));
   }, []);
 
   const processSwipe = (direction) => {
       setIsAnimating(true);
-      const word = queue[current];
-      let newScore = word.score;
-
-      // --- LOGIC: SWIPE SCORING ---
-      if (direction === 'RIGHT') { // יודע
-          // אם הציץ -> יורד ל-3 (WEAK)
-          if (isPeeked) {
-              newScore = 3;
-          } else {
-              // קפיצה ל-5 (KNOWN) או עליה ב-1
-              newScore = word.score < 5 ? 5 : word.score + 1;
-          }
-      } else { // לא יודע (LEFT)
-          // יורד לתחתית (LEARN)
-          newScore = 1; 
-      }
+      let newStatus = STATUS.LEARN;
+      if (isPeeked) newStatus = direction === 'RIGHT' ? STATUS.WEAK : STATUS.LEARN;
+      else newStatus = direction === 'RIGHT' ? STATUS.KNOWN : STATUS.LEARN;
       
       setOffset(direction === 'RIGHT' ? 800 : -800);
-      updateWord(word.id, { score: newScore });
-      
-      setSessionResults(prev => [...prev, { ...word, score: newScore }]);
-      
+      const word = queue[current];
+      updateWord(word.id, { status: newStatus });
+      setSessionResults(prev => [...prev, { ...word, status: newStatus }]);
       setTimeout(() => {
-          setFeedback({ score: newScore, ...word });
+          setFeedback({ status: newStatus, ...word });
           setOffset(0); 
           setIsPeeked(false);
           setIsAnimating(false);
       }, 200);
-      
       setTimeout(() => {
           setFeedback(null);
           if (current < queue.length - 1) setCurrent(c => c + 1);
@@ -284,8 +166,18 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
     setDragStart(null);
   };
 
+  const toggleStatus = (idx) => {
+      const item = sessionResults[idx];
+      const cycle = [STATUS.LEARN, STATUS.WEAK, STATUS.KNOWN];
+      const nextStatus = cycle[(cycle.indexOf(item.status) + 1) % cycle.length];
+      const newResults = [...sessionResults];
+      newResults[idx] = { ...item, status: nextStatus };
+      setSessionResults(newResults);
+      updateWord(item.id, { status: nextStatus });
+  };
+
   const toggleSpelling = (id) => {
-      const currentFlag = words.find(w => w.id === id)?.flag_spelling;
+      const currentFlag = progress[id]?.flag_spelling;
       updateWord(id, { flag_spelling: !currentFlag });
   };
 
@@ -295,9 +187,7 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
               <Header title="סיכום סשן" onBack={() => setView('GAMES_MENU')} subtitle="תוצאות המיון" />
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {sessionResults.map((item, idx) => {
-                      const isSpelling = words.find(w => w.id === item.id)?.flag_spelling;
-                      const color = getVisualColor(item.score);
-                      const statusLabel = getVisualStatus(item.score);
+                      const isSpelling = progress[item.id]?.flag_spelling;
                       return (
                         <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
                             <div className="flex-1 ml-4 overflow-hidden">
@@ -308,9 +198,10 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
                                 <button onClick={() => toggleSpelling(item.id)} className={`p-2 rounded-lg border ${isSpelling ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-gray-50 text-gray-300 border-gray-100'}`}>
                                     <Languages size={18}/>
                                 </button>
-                                <span className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border transition-colors shrink-0 bg-${color}-50 text-${color}-700 border-${color}-200`}>
-                                    {statusLabel === 'KNOWN' ? 'יודע' : statusLabel === 'WEAK' ? 'לחיזוק' : 'ללמידה'}
-                                </span>
+                                <button onClick={() => toggleStatus(idx)} className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border transition-colors shrink-0 outline-none ${item.status === STATUS.KNOWN ? 'bg-green-50 text-green-700 border-green-200' : item.status === STATUS.WEAK ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {item.status === STATUS.KNOWN ? 'יודע' : item.status === STATUS.WEAK ? 'לחיזוק' : 'ללמידה'}
+                                    <Edit3 size={14} className="opacity-50"/>
+                                </button>
                             </div>
                         </div>
                       );
@@ -334,14 +225,8 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
 
   return (
     <div className="h-[100dvh] flex flex-col bg-gray-50" dir="rtl">
-       <Header 
-           title="Swipe" 
-           onBack={() => setView('GAMES_MENU')} 
-           subtitle={`${current + 1} מתוך ${queue.length}`} 
-           onSettings={() => setSettings({...settings, showSettings: true})}
-       />
-       <SettingsModal settings={settings} setSettings={setSettings} onClose={() => setSettings({...settings, showSettings: false})} />
-
+       <Header title="Swipe" onBack={() => setView('GAMES_MENU')} subtitle={`${current + 1} מתוך ${queue.length}`} />
+       
       <div className="flex-1 relative flex items-center justify-center perspective-1000 p-6 overflow-hidden">
           {!feedback && (
             <div 
@@ -377,10 +262,10 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
           )}
           {feedback && (
              <div className="absolute inset-0 flex flex-col items-center justify-center z-30 animate-in fade-in zoom-in-95 duration-200 bg-white/95 backdrop-blur-sm">
-                 <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 shadow-sm ${feedback.score >= 5 ? 'bg-green-100 text-green-600' : feedback.score >= 3 ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
-                     {feedback.score >= 5 && <Check size={48}/>}
-                     {feedback.score >= 3 && feedback.score < 5 && <Eye size={48}/>}
-                     {feedback.score <= 2 && <X size={48}/>}
+                 <div className={`w-24 h-24 rounded-full flex items-center justify-center mb-8 shadow-sm ${feedback.status === STATUS.KNOWN ? 'bg-green-100 text-green-600' : feedback.status === STATUS.WEAK ? 'bg-amber-100 text-amber-600' : 'bg-red-100 text-red-600'}`}>
+                     {feedback.status === STATUS.KNOWN && <Check size={48}/>}
+                     {feedback.status === STATUS.WEAK && <Eye size={48}/>}
+                     {feedback.status === STATUS.LEARN && <X size={48}/>}
                  </div>
                  <h2 className="text-4xl font-bold text-gray-800 mb-2 px-2 text-center">{word.hebrew}</h2>
                  <h3 className="text-2xl text-gray-400 mb-8 font-medium px-4 text-center">{word.english}</h3>
@@ -392,63 +277,28 @@ const SwipeGame = ({ words, updateWord, setView, settings, setSettings }) => {
 };
 
 // =================================================================================
-// GAME 2: QUIZ GAME (לוגיקה מעודכנת 3.2 עם טבלה וזמן)
+// GAME 2: QUIZ GAME
 // =================================================================================
-const QuizGame = ({ words, updateWord, setView, settings, setSettings }) => {
+const QuizGame = ({ progress, updateWord, setView }) => {
     const [questions, setQuestions] = useState([]);
     const [current, setCurrent] = useState(0);
-    const [timer, setTimer] = useState(settings.timerDuration);
+    const [timer, setTimer] = useState(5);
     const [selectedOpt, setSelectedOpt] = useState(null); 
     const [feedback, setFeedback] = useState(null); 
     const [sessionResults, setSessionResults] = useState([]);
     const [showSummary, setShowSummary] = useState(false);
-    const [scoreCount, setScoreCount] = useState(0);
-    const [isPanic, setIsPanic] = useState(false); // האם ענה בלחץ זמן
+    const [score, setScore] = useState(0);
 
-    // --- ALGORITHM: DYNAMIC QUIZ ---
     useEffect(() => {
-        const totalWords = words.length;
-        const touchedWords = words.filter(w => w.score > 0).length;
-        const progress = Math.round((touchedWords / totalWords) * 100);
-
-        // טבלת ההסתברות לפי CSV
-        let dist = { unseen: 0, learn: 0, weak: 0, known: 0 };
-        if (progress <= 10) dist = { unseen: 100, learn: 0, weak: 0, known: 0 };
-        else if (progress <= 30) dist = { unseen: 90, learn: 0, weak: 10, known: 0 };
-        else if (progress <= 60) dist = { unseen: 65, learn: 10, weak: 20, known: 5 };
-        else if (progress <= 90) dist = { unseen: 40, learn: 20, weak: 25, known: 15 };
-        else if (progress <= 99) dist = { unseen: 10, learn: 30, weak: 35, known: 25 };
-        else dist = { unseen: 0, learn: 30, weak: 40, known: 30 };
-
-        const getPool = (min, max) => words.filter(w => w.score >= min && w.score <= max);
-        const pools = {
-            unseen: getPool(0, 0),
-            learn: getPool(1, 2),
-            weak: getPool(3, 4),
-            known: getPool(5, 100).sort((a,b) => a.score - b.score) // Retention priority
-        };
-
-        let qWords = [];
-        const target = 20;
-
-        Object.keys(dist).forEach(key => {
-            const count = Math.floor((dist[key] / 100) * target);
-            let pool = pools[key];
-            if (key !== 'known') pool = pool.sort(() => Math.random() - 0.5);
-            qWords = [...qWords, ...pool.slice(0, count)];
-        });
-
-        // השלמות אם חסר
-        if (qWords.length < target) {
-            const usedIds = new Set(qWords.map(w => w.id));
-            const backup = words.filter(w => !usedIds.has(w.id)).sort(() => Math.random() - 0.5);
-            qWords = [...qWords, ...backup.slice(0, target - qWords.length)];
+        let pool = MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.LEARN || progress[w.id]?.status === STATUS.WEAK);
+        if (pool.length < 20) {
+            const others = MASTER_WORDS.filter(w => !pool.includes(w));
+            pool = [...pool, ...others];
         }
-        
-        // יצירת השאלות
-        const qList = qWords.sort(() => Math.random() - 0.5).map(word => {
+        pool = pool.sort(() => Math.random() - 0.5).slice(0, 20);
+        const qList = pool.map(word => {
             const isEngQuestion = Math.random() > 0.5;
-            const distractors = words.filter(w => w.id !== word.id).sort(() => Math.random() - 0.5).slice(0, 3);
+            const distractors = MASTER_WORDS.filter(w => w.id !== word.id).sort(() => Math.random() - 0.5).slice(0, 3);
             return {
                 word,
                 isEngQuestion,
@@ -463,67 +313,66 @@ const QuizGame = ({ words, updateWord, setView, settings, setSettings }) => {
 
     useEffect(() => {
         if (showSummary || feedback) return;
-        if (timer <= 0) { handleAnswer(null, true); return; } // Timeout
+        if (timer <= 0) { handleAnswer(null); return; }
         const interval = setInterval(() => setTimer(prev => Math.max(0, prev - 0.1)), 100);
         return () => clearInterval(interval);
     }, [timer, feedback, showSummary]);
 
-    const handleAnswer = (option, isTimeout = false) => {
+    const handleAnswer = (option) => {
         const q = questions[current];
-        const isCorrect = !isTimeout && option && option.id === q.word.id;
-        const panic = timer < settings.panicThreshold;
-        
+        const isCorrect = option && option.id === q.word.id;
         setSelectedOpt(option ? option.id : null);
         setFeedback(isCorrect ? 'CORRECT' : 'WRONG');
-        setIsPanic(panic);
 
-        // --- LOGIC: SCORE UPDATE ---
-        const oldScore = q.word.score;
-        let newScore = oldScore;
+        let newStatus = progress[q.word.id]?.status || STATUS.UNSEEN;
+        const streak = progress[q.word.id]?.streak || 0;
+        let finalStatus = newStatus;
 
         if (isCorrect) {
-            newScore = oldScore + 1;
-            setScoreCount(s => s + 1);
+            setScore(s => s + 1);
+            if (newStatus === STATUS.UNSEEN) finalStatus = STATUS.KNOWN; 
+            else if (newStatus === STATUS.LEARN && streak >= 1) finalStatus = STATUS.WEAK;
+            else if (newStatus === STATUS.WEAK && streak >= 1) finalStatus = STATUS.KNOWN;
+            updateWord(q.word.id, { status: finalStatus, streak: streak + 1 });
         } else {
-            // Logic Table
-            if (oldScore >= 10) newScore = 4; // Mastery -> Weak+
-            else if (oldScore >= 5) newScore = (!panic && !isTimeout) ? 3 : 2; // Known -> Weak or Learn+
-            else if (oldScore >= 3) newScore = (!panic && !isTimeout) ? oldScore - 1 : oldScore - 2; // Weak -> lower Weak or Learn
-            else newScore = 1; // Learn -> Learn
+            finalStatus = newStatus === STATUS.KNOWN ? STATUS.WEAK : STATUS.LEARN;
+            updateWord(q.word.id, { status: finalStatus, streak: 0 });
         }
-        // Safety bound
-        if (newScore < 1) newScore = 1;
-        
-        updateWord(q.word.id, { score: newScore });
 
-        setSessionResults(prev => [...prev, { ...q.word, score: newScore }]);
+        setSessionResults(prev => [...prev, { ...q.word, status: finalStatus }]);
         setTimeout(() => {
             if (current < questions.length - 1) {
                 setCurrent(c => c + 1);
-                setTimer(settings.timerDuration);
+                setTimer(5);
                 setFeedback(null);
                 setSelectedOpt(null);
-                setIsPanic(false);
             } else {
                 setShowSummary(true);
             }
-        }, 1200); 
+        }, 700); 
+    };
+
+    const toggleStatus = (idx) => {
+      const item = sessionResults[idx];
+      const nextStatus = [STATUS.LEARN, STATUS.WEAK, STATUS.KNOWN][([STATUS.LEARN, STATUS.WEAK, STATUS.KNOWN].indexOf(item.status) + 1) % 3];
+      const newResults = [...sessionResults];
+      newResults[idx] = { ...item, status: nextStatus };
+      setSessionResults(newResults);
+      updateWord(item.id, { status: nextStatus });
     };
 
     const toggleSpelling = (id) => {
-        const currentFlag = words.find(w => w.id === id)?.flag_spelling;
+        const currentFlag = progress[id]?.flag_spelling;
         updateWord(id, { flag_spelling: !currentFlag });
     };
 
     if (showSummary) {
         return (
           <div className="h-[100dvh] bg-gray-50 flex flex-col text-right" dir="rtl">
-              <Header title="סיכום מבחן" onBack={() => setView('GAMES_MENU')} subtitle={`ציון: ${scoreCount} מתוך 20`} />
+              <Header title="סיכום מבחן" onBack={() => setView('GAMES_MENU')} subtitle={`ציון: ${score} מתוך 20`} />
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
                   {sessionResults.map((item, idx) => {
-                      const isSpelling = words.find(w => w.id === item.id)?.flag_spelling;
-                      const color = getVisualColor(item.score);
-                      const label = getVisualStatus(item.score);
+                      const isSpelling = progress[item.id]?.flag_spelling;
                       return (
                         <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
                             <div className="flex-1 ml-4 overflow-hidden">
@@ -534,9 +383,10 @@ const QuizGame = ({ words, updateWord, setView, settings, setSettings }) => {
                                 <button onClick={() => toggleSpelling(item.id)} className={`p-2 rounded-lg border ${isSpelling ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-gray-50 text-gray-300 border-gray-100'}`}>
                                     <Languages size={18}/>
                                 </button>
-                                <span className={`text-xs font-bold px-3 py-2 rounded-lg border bg-${color}-50 text-${color}-700 border-${color}-200`}>
-                                    {label}
-                                </span>
+                                <button onClick={() => toggleStatus(idx)} className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border shrink-0 ${item.status === STATUS.KNOWN ? 'bg-green-50 text-green-700 border-green-200' : item.status === STATUS.WEAK ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                    {item.status === STATUS.KNOWN ? 'יודע' : item.status === STATUS.WEAK ? 'לחיזוק' : 'ללמידה'}
+                                    <Edit3 size={14} className="opacity-50"/>
+                                </button>
                             </div>
                         </div>
                       );
@@ -566,9 +416,7 @@ const QuizGame = ({ words, updateWord, setView, settings, setSettings }) => {
                 onBack={() => setView('GAMES_MENU')} 
                 subtitle={`${current + 1} / ${questions.length}`}
                 extraLeft={<TimerDisplay/>}
-                onSettings={() => setSettings({...settings, showSettings: true})}
             />
-            <SettingsModal settings={settings} setSettings={setSettings} onClose={() => setSettings({...settings, showSettings: false})} />
             
             <div className="flex-none h-[35%] flex items-center justify-center w-full p-6 pb-2">
                 <div className="bg-white rounded-[2rem] shadow-sm border border-gray-100 w-full h-full flex flex-col items-center justify-center p-6 text-center overflow-hidden relative">
@@ -582,7 +430,7 @@ const QuizGame = ({ words, updateWord, setView, settings, setSettings }) => {
                     <p className="text-gray-400 mt-2 text-sm font-medium">בחר את התרגום הנכון</p>
                     
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-100">
-                         <div className={`h-full transition-all linear ${timer < 2 ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${(timer / settings.timerDuration) * 100}%` }}></div>
+                         <div className={`h-full transition-all linear ${timer < 2 ? 'bg-red-500' : 'bg-indigo-500'}`} style={{ width: `${(timer / 5) * 100}%` }}></div>
                     </div>
                 </div>
             </div>
@@ -609,202 +457,77 @@ const QuizGame = ({ words, updateWord, setView, settings, setSettings }) => {
                     );
                 })}
             </div>
-            {feedback === 'WRONG' && isPanic && (
-                 <div className="absolute bottom-4 left-0 right-0 text-center text-red-500 font-bold animate-pulse">
-                     <AlertTriangle size={16} className="inline mr-1"/> לחץ זמן! ענישה כפולה
-                 </div>
-            )}
         </div>
     );
 };
 
 // =================================================================================
-// GAME 3: MATCH GAME (Corrected Init 4 Pairs + 4 Orphans v3.7)
+// GAME 3: MATCH GAME
 // =================================================================================
-const MatchGame = ({ words, updateWord, setView }) => {
-    const [board, setBoard] = useState(Array(12).fill(null));
+const MatchGame = ({ progress, updateWord, setView }) => {
+    const [board, setBoard] = useState([]);
     const [selected, setSelected] = useState([]);
     const [matchesFound, setMatchesFound] = useState(0);
     const [isLocked, setIsLocked] = useState(false);
-    const [hintIndices, setHintIndices] = useState([]);
+    const [hintIndices, setHintIndices] = useState([]); 
     const [showSummary, setShowSummary] = useState(false);
     const [sessionResults, setSessionResults] = useState([]);
-    
-    const sessionHistory = useRef(new Set()); 
 
-    // --- SMART WORD SELECTOR ---
-    const getNextWord = (currentBoard) => {
-        const activeCards = currentBoard.filter(c => c !== null);
-        const hardCardsCount = activeCards.filter(c => c.wordScore >= 1 && c.wordScore <= 4).length;
-        const totalActive = activeCards.length || 1;
-        const hardRatio = hardCardsCount / totalActive;
+    useEffect(() => { initBoard(); }, []);
 
-        let targetPoolType = 'BALANCED';
-        if (hardRatio > 0.6) targetPoolType = 'COOLDOWN'; 
-        if (hardRatio < 0.2) targetPoolType = 'HEATUP';   
+    const initBoard = () => {
+        const pool = [...MASTER_WORDS].sort(() => Math.random() - 0.5);
+        const pairs = pool.slice(0, 3); 
+        const singlesA = pool.slice(3, 6); 
+        const singlesB = pool.slice(6, 9); 
+        const cards = [];
+        pairs.forEach(w => { cards.push(createCard(w.id, 'EN')); cards.push(createCard(w.id, 'HE')); });
+        singlesA.forEach(w => cards.push(createCard(w.id, 'EN')));
+        singlesB.forEach(w => cards.push(createCard(w.id, 'HE')));
+        setBoard(cards.sort(() => Math.random() - 0.5));
+    };
 
-        const availableWords = words.filter(w => !sessionHistory.current.has(w.id));
-        
-        if (availableWords.length === 0) {
-            sessionHistory.current.clear();
-            return words[Math.floor(Math.random() * words.length)];
-        }
-
-        const pools = {
-            unseen: availableWords.filter(w => w.score === 0),
-            hard: availableWords.filter(w => w.score >= 1 && w.score <= 4),
-            known: availableWords.filter(w => w.score >= 5).sort((a,b) => a.score - b.score) 
+    const createCard = (wordId, type) => {
+        const w = MASTER_WORDS.find(x => x.id === wordId);
+        return {
+            id: `c_${w.id}_${type.toLowerCase()}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+            wordId: w.id, text: type === 'EN' ? w.english : w.hebrew, type: type, createdAt: Date.now()
         };
-
-        let finalPool = [];
-        if (targetPoolType === 'COOLDOWN') {
-            if (pools.unseen.length > 0) finalPool = [...finalPool, ...pools.unseen];
-            if (pools.known.length > 0) finalPool = [...finalPool, ...pools.known];
-            if (finalPool.length === 0) finalPool = availableWords; 
-        } else if (targetPoolType === 'HEATUP') {
-            if (pools.hard.length > 0) finalPool = pools.hard;
-            else finalPool = [...pools.unseen, ...pools.known];
-        } else {
-            const rand = Math.random();
-            if (rand < 0.2 && pools.unseen.length) finalPool = pools.unseen;
-            else if (rand < 0.7 && pools.hard.length) finalPool = pools.hard;
-            else if (pools.known.length) finalPool = pools.known;
-            else finalPool = availableWords;
-        }
-
-        if (finalPool.length === 0) finalPool = availableWords;
-        const selectedWord = finalPool[Math.floor(Math.random() * finalPool.length)];
-        sessionHistory.current.add(selectedWord.id);
-        return selectedWord;
     };
 
-    // --- BOARD LOGIC ---
+    const refillSlots = (indicesToFill) => {
+        const remainingCards = board.filter((_, idx) => !indicesToFill.includes(idx));
+        const enCount = remainingCards.filter(c => c.type === 'EN').length;
+        const heCount = remainingCards.filter(c => c.type === 'HE').length;
+        let targetEn = 6 - enCount, targetHe = 6 - heCount;
+        const newCards = [];
+        const lonelyCards = remainingCards.filter(c => !remainingCards.some(other => other.wordId === c.wordId && other.type !== c.type));
 
-    const createCard = (word, type) => ({
-        id: `c_${word.id}_${type}_${Date.now()}_${Math.random().toString(36).slice(2)}`,
-        wordId: word.id,
-        text: type === 'EN' ? word.english : word.hebrew,
-        type,
-        wordScore: word.score 
-    });
-
-    const refillBoard = (currentBoard) => {
-        let nextBoard = [...currentBoard];
-        
-        // זיהוי אינדקסים ריקים
-        let emptyIndices = nextBoard.map((c, i) => c === null ? i : -1).filter(i => i !== -1);
-        if (emptyIndices.length === 0) return nextBoard;
-
-        // רשימת קלפים לכניסה
-        const newCardsBuffer = [];
-        const activeCards = nextBoard.filter(c => c !== null);
-        
-        // בדיקה אם זה אתחול ראשוני (לוח ריק)
-        const isInitialFill = activeCards.length === 0;
-
-        if (isInitialFill) {
-            // === אתחול: 4 זוגות + 2 יתומים EN + 2 יתומים HE ===
-            // סה"כ 8 מילים שונות (4 לזוגות, 2 ליתומים אנגלית, 2 ליתומים עברית)
-            
-            const initWords = [];
-            // שליפת 8 מילים שונות
-            while(initWords.length < 8) {
-                const w = getNextWord(nextBoard);
-                // וודא שאין כפילות מקומית (למרות ש-getNextWord מטפל בזה, ליתר ביטחון באתחול)
-                if(!initWords.find(exist => exist.id === w.id)) {
-                    initWords.push(w);
-                }
-            }
-
-            // 1. יצירת 4 זוגות (מילים 0-3)
-            for (let i = 0; i < 4; i++) {
-                newCardsBuffer.push(createCard(initWords[i], 'EN'));
-                newCardsBuffer.push(createCard(initWords[i], 'HE'));
-            }
-
-            // 2. יצירת 2 יתומים אנגלית (מילים 4-5)
-            for (let i = 4; i < 6; i++) {
-                newCardsBuffer.push(createCard(initWords[i], 'EN'));
-            }
-
-            // 3. יצירת 2 יתומים עברית (מילים 6-7)
-            for (let i = 6; i < 8; i++) {
-                newCardsBuffer.push(createCard(initWords[i], 'HE'));
-            }
-
-        } else {
-            // === מילוי שוטף (Strict Refill) ===
-            const idCounts = {};
-            activeCards.forEach(c => idCounts[c.wordId] = (idCounts[c.wordId] || 0) + 1);
-            let availableOrphans = activeCards.filter(c => idCounts[c.wordId] === 1);
-
-            // חישוב איזון שפות - כדי לאזן את היתומים החדשים
-            const enCount = activeCards.filter(c => c.type === 'EN').length;
-            const heCount = activeCards.filter(c => c.type === 'HE').length;
-            let neededEn = 6 - enCount;
-            let neededHe = 6 - heCount;
-
-            let slots = emptyIndices.length;
-
-            while (slots > 0) {
-                let cardAdded = false;
-
-                // עדיפות 1: סגירת יתום (רק אם זה מתאים למאזן השפות החסר)
-                if (availableOrphans.length > 0) {
-                    const candidateIndex = availableOrphans.findIndex(o => {
-                        const neededType = o.type === 'EN' ? 'HE' : 'EN';
-                        return neededType === 'EN' ? neededEn > 0 : neededHe > 0;
-                    });
-
-                    if (candidateIndex !== -1) {
-                        const orphan = availableOrphans[candidateIndex];
-                        const typeToAdd = orphan.type === 'EN' ? 'HE' : 'EN';
-                        const w = words.find(x => x.id === orphan.wordId);
-                        
-                        if (w) {
-                            newCardsBuffer.push(createCard(w, typeToAdd));
-                            if (typeToAdd === 'EN') neededEn--; else neededHe--;
-                            availableOrphans.splice(candidateIndex, 1);
-                            cardAdded = true;
-                        }
-                    }
-                }
-
-                // עדיפות 2: הכנסת מילה חדשה כבודדת
-                if (!cardAdded) {
-                    const newWord = getNextWord(nextBoard);
-                    
-                    // איזה סוג כרטיס להכניס? מה שחסר יותר
-                    let typeToAdd = 'EN';
-                    if (neededHe > neededEn) typeToAdd = 'HE';
-                    else if (neededEn > neededHe) typeToAdd = 'EN';
-                    else typeToAdd = Math.random() > 0.5 ? 'EN' : 'HE';
-
-                    newCardsBuffer.push(createCard(newWord, typeToAdd));
-                    if (typeToAdd === 'EN') neededEn--; else neededHe--;
-                }
-                
-                slots--;
+        if (lonelyCards.length > 0) {
+            const rescueTarget = lonelyCards.sort((a,b) => a.createdAt - b.createdAt)[0];
+            const neededType = rescueTarget.type === 'EN' ? 'HE' : 'EN';
+            if ((neededType === 'EN' && targetEn > 0) || (neededType === 'HE' && targetHe > 0)) {
+                newCards.push(createCard(rescueTarget.wordId, neededType));
+                if (neededType === 'EN') targetEn--; else targetHe--;
             }
         }
-
-        // ערבוב והכנסה
-        const shuffledBuffer = newCardsBuffer.sort(() => Math.random() - 0.5);
-        emptyIndices.forEach((boardIndex, i) => {
-            nextBoard[boardIndex] = shuffledBuffer[i];
-        });
-
-        return nextBoard;
+        const existingIds = new Set([...remainingCards.map(c => c.wordId), ...newCards.map(c => c.wordId)]);
+        while (targetEn > 0 || targetHe > 0) {
+            const w = MASTER_WORDS[Math.floor(Math.random() * MASTER_WORDS.length)];
+            if (!existingIds.has(w.id)) {
+                if (targetEn > 0) { newCards.push(createCard(w.id, 'EN')); targetEn--; existingIds.add(w.id); } 
+                else if (targetHe > 0) { newCards.push(createCard(w.id, 'HE')); targetHe--; existingIds.add(w.id); }
+            }
+        }
+        const nextBoard = [...board];
+        const shuffledNew = newCards.sort(() => Math.random() - 0.5);
+        indicesToFill.forEach((idx, i) => nextBoard[idx] = shuffledNew[i]);
+        setBoard(nextBoard);
+        if (!nextBoard.some((c1, i) => nextBoard.some((c2, j) => i !== j && c1.wordId === c2.wordId))) setShowSummary(true);
     };
-
-    useEffect(() => {
-        setBoard(refillBoard(Array(12).fill(null)));
-    }, []);
-
-    // --- INTERACTION ---
 
     const handleCardClick = (card, index) => {
-        if (isLocked || !card) return;
+        if (isLocked) return;
         if (selected.length === 1 && selected[0].index === index) { setSelected([]); return; }
         if (selected.find(s => s.index === index)) return;
         
@@ -814,55 +537,22 @@ const MatchGame = ({ words, updateWord, setView }) => {
         if (newSelected.length === 2) {
             setIsLocked(true);
             const [c1, c2] = newSelected;
-            const w1 = words.find(w => w.id === c1.wordId);
-
             if (c1.wordId === c2.wordId && c1.type !== c2.type) {
-                // SUCCESS
                 setMatchesFound(p => p + 1);
-                
-                let newScore = w1.score;
-                if (w1.score === 0) newScore = 5; 
-                else newScore = w1.score + 1;
-                
-                updateWord(c1.wordId, { score: newScore });
-                addToSummary(c1.wordId, newScore);
-
-                setTimeout(() => {
-                    const nextBoard = [...board];
-                    nextBoard[c1.index] = null;
-                    nextBoard[c2.index] = null;
-                    
-                    setBoard(refillBoard(nextBoard));
-                    setSelected([]);
-                    setIsLocked(false);
-                    setHintIndices([]);
-                }, 400);
-
+                updateWord(c1.wordId, { status: STATUS.KNOWN }); 
+                addToSummary(c1.wordId, STATUS.KNOWN); 
+                setTimeout(() => { refillSlots([c1.index, c2.index]); setSelected([]); setIsLocked(false); setHintIndices([]); }, 400);
             } else {
-                // FAILURE
-                [c1, c2].forEach(c => {
-                    const w = words.find(x => x.id === c.wordId);
-                    let newScore = w.score;
-                    if (w.score === 0) newScore = 1; 
-                    else newScore = Math.max(1, w.score - 1); 
-                    updateWord(c.wordId, { score: newScore });
-                    addToSummary(c.wordId, newScore);
-                });
-
+                updateWord(c1.wordId, { status: STATUS.LEARN });
+                updateWord(c2.wordId, { status: STATUS.LEARN });
+                addToSummary(c1.wordId, STATUS.LEARN); 
+                addToSummary(c2.wordId, STATUS.LEARN); 
                 setTimeout(() => {
-                    // CHAIN REACTION
-                    const nextBoard = [...board];
-                    const idsToBurn = [c1.wordId, c2.wordId];
-
-                    for (let i = 0; i < nextBoard.length; i++) {
-                        if (nextBoard[i] && idsToBurn.includes(nextBoard[i].wordId)) {
-                            nextBoard[i] = null; 
-                        }
-                    }
-
-                    setBoard(refillBoard(nextBoard));
-                    setSelected([]);
-                    setIsLocked(false);
+                    const indicesToRemove = [c1.index, c2.index];
+                    board.forEach((c, idx) => {
+                        if (idx !== c1.index && idx !== c2.index && (c.wordId === c1.wordId || c.wordId === c2.wordId)) indicesToRemove.push(idx);
+                    });
+                    refillSlots(indicesToRemove); setSelected([]); setIsLocked(false);
                 }, 1000);
             }
         }
@@ -870,28 +560,40 @@ const MatchGame = ({ words, updateWord, setView }) => {
 
     const handleHint = () => {
         if (hintIndices.length > 0 || isLocked) return;
-        let pairIndices = [];
+        let foundIndices = [];
         for (let i = 0; i < board.length; i++) {
-            if (!board[i]) continue;
             for (let j = i + 1; j < board.length; j++) {
-                if (board[j] && board[i].wordId === board[j].wordId) {
-                    pairIndices = [i, j]; break;
-                }
+                if (board[i].wordId === board[j].wordId) { foundIndices = [i, j]; break; }
             }
-            if (pairIndices.length > 0) break;
+            if (foundIndices.length > 0) break;
         }
-        if (pairIndices.length === 2) {
-            setHintIndices(pairIndices);
-            setTimeout(() => setHintIndices([]), 800);
+        if (foundIndices.length === 2) {
+            const wordId = board[foundIndices[0]].wordId;
+            const newStatus = (progress[wordId]?.status || STATUS.UNSEEN) === STATUS.KNOWN ? STATUS.WEAK : STATUS.LEARN;
+            updateWord(wordId, { status: newStatus, streak: 0 });
+            addToSummary(wordId, newStatus); 
+            setHintIndices(foundIndices); setTimeout(() => setHintIndices([]), 500);
         }
     };
 
-    const addToSummary = (wordId, score) => {
+    const addToSummary = (wordId, status) => {
         setSessionResults(prev => {
-            const word = words.find(w => w.id === wordId);
+            const word = MASTER_WORDS.find(w => w.id === wordId);
             if (!word) return prev;
-            return [...prev.filter(item => item.id !== wordId), { ...word, score }];
+            return [...prev.filter(item => item.id !== wordId), { ...word, status }];
         });
+    };
+
+    const toggleSummaryStatus = (idx) => {
+        const item = sessionResults[idx];
+        const nextStatus = [STATUS.LEARN, STATUS.WEAK, STATUS.KNOWN][([STATUS.LEARN, STATUS.WEAK, STATUS.KNOWN].indexOf(item.status) + 1) % 3];
+        const newResults = [...sessionResults]; newResults[idx] = { ...item, status: nextStatus };
+        setSessionResults(newResults); updateWord(item.id, { status: nextStatus });
+    };
+
+    const toggleSpelling = (id) => {
+        const currentFlag = progress[id]?.flag_spelling;
+        updateWord(id, { flag_spelling: !currentFlag });
     };
 
     if (showSummary) {
@@ -899,14 +601,24 @@ const MatchGame = ({ words, updateWord, setView }) => {
             <div className="h-[100dvh] bg-gray-50 flex flex-col text-right" dir="rtl">
                 <Header title="סיכום משחק" onBack={() => setView('GAMES_MENU')} subtitle={`בוצעו ${matchesFound} התאמות`} />
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {sessionResults.map((item, idx) => (
-                        <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
-                            <div><div className="font-bold text-gray-800">{item.english}</div><div className="text-sm text-gray-500">{item.hebrew}</div></div>
-                            <span className={`text-xs font-bold px-3 py-2 rounded-lg border ${getStatusClasses(item.score)}`}>
-                                {getVisualStatus(item.score)}
-                            </span>
-                        </div>
-                    ))}
+                    {sessionResults.length === 0 && <div className="text-center text-gray-400 mt-10">לא בוצעו מהלכים.</div>}
+                    {sessionResults.map((item, idx) => {
+                        const isSpelling = progress[item.id]?.flag_spelling;
+                        return (
+                            <div key={idx} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex justify-between items-center">
+                                <div><div className="font-bold text-gray-800">{item.english}</div><div className="text-sm text-gray-500">{item.hebrew}</div></div>
+                                <div className="flex items-center gap-2">
+                                    <button onClick={() => toggleSpelling(item.id)} className={`p-2 rounded-lg border ${isSpelling ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-gray-50 text-gray-300 border-gray-100'}`}>
+                                        <Languages size={18}/>
+                                    </button>
+                                    <button onClick={() => toggleSummaryStatus(idx)} className={`flex items-center gap-2 text-xs font-bold px-3 py-2 rounded-lg border shrink-0 ${item.status === STATUS.KNOWN ? 'bg-green-50 text-green-700 border-green-200' : item.status === STATUS.WEAK ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                                        {item.status === STATUS.KNOWN ? 'יודע' : item.status === STATUS.WEAK ? 'לחיזוק' : 'ללמידה'}
+                                        <Edit3 size={14} className="opacity-50"/>
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
                 <div className="p-4 bg-white border-t border-gray-100"><Button onClick={() => setView('GAMES_MENU')} className="w-full py-4 text-lg">חזור לתפריט</Button></div>
             </div>
@@ -925,19 +637,20 @@ const MatchGame = ({ words, updateWord, setView }) => {
                     </button>
                 }
             />
+            
             <div className="grid grid-cols-3 gap-3 p-4 content-start flex-1 overflow-y-auto">
                 {board.map((card, idx) => {
-                    if (!card) return <div key={idx} className="h-28 rounded-2xl bg-gray-100/50 border-2 border-dashed border-gray-200"></div>;
                     const isSelected = selected.find(s => s.index === idx);
                     const isHinted = hintIndices.includes(idx);
                     const isWrong = selected.length === 2 && selected[0].wordId !== selected[1].wordId && isSelected;
+                    
                     return (
                         <button 
-                            key={card.id}
+                            key={card.id || idx}
                             onClick={() => handleCardClick(card, idx)}
-                            className={`h-28 rounded-2xl font-bold shadow-sm text-sm p-1 break-words flex items-center justify-center transition-all border-b-4 active:border-b-0 active:translate-y-1 outline-none focus:outline-none ring-0 select-none
+                            className={`h-28 rounded-2xl font-bold shadow-sm text-sm p-1 break-words flex items-center justify-center transition-all border-b-4 active:border-b-0 active:translate-y-1 outline-none focus:outline-none ring-0
                                 ${isWrong ? 'bg-red-500 text-white border-red-700 animate-shake' : 
-                                  isHinted ? 'bg-amber-100 text-amber-800 border-amber-300 ring-4 ring-amber-400 scale-105' :
+                                  isHinted ? 'bg-amber-100 text-amber-800 border-amber-300 ring-2 ring-amber-400 scale-105' :
                                   isSelected ? 'bg-indigo-600 text-white border-indigo-800 scale-95' : 
                                   'bg-white text-gray-700 border-gray-200 hover:border-indigo-200 hover:text-indigo-600'}
                             `}
@@ -955,18 +668,19 @@ const MatchGame = ({ words, updateWord, setView }) => {
 };
 
 // =================================================================================
-// GAME 4: SPELLING BEE (שימוש בנתונים החדשים)
+// GAME 4: SPELLING BEE
 // =================================================================================
-const SpellingGame = ({ words, updateWord, setView }) => {
+const SpellingGame = ({ progress, updateWord, setView }) => {
     const [queue, setQueue] = useState([]);
     const [current, setCurrent] = useState(0);
     const [input, setInput] = useState('');
-    const [feedback, setFeedback] = useState(null); 
+    const [feedback, setFeedback] = useState(null); // null, 'CORRECT', 'WRONG'
     const [showSummary, setShowSummary] = useState(false);
     const [score, setScore] = useState(0);
 
+    // טעינת מילים שסומנו לאיות
     useEffect(() => {
-        const pool = words.filter(w => w.flag_spelling === true);
+        const pool = MASTER_WORDS.filter(w => progress[w.id]?.flag_spelling === true);
         setQueue(pool.sort(() => Math.random() - 0.5));
     }, []);
 
@@ -980,8 +694,6 @@ const SpellingGame = ({ words, updateWord, setView }) => {
         if (isCorrect) {
             setFeedback('CORRECT');
             setScore(s => s + 1);
-            // בונוס קטן לאיות נכון (אם לא במאסטר)
-            if (word.score < 10) updateWord(word.id, { score: word.score + 1 });
         } else {
             setFeedback('WRONG');
         }
@@ -1080,203 +792,452 @@ const SpellingGame = ({ words, updateWord, setView }) => {
 };
 
 // =================================================================================
-// WORD BANK & PROGRESS & TASKS (Views Updated for Score)
+// WORD BANK VIEW
 // =================================================================================
-
-const WordBankView = ({ setView, words, updateWord }) => {
+const WordBankView = ({ setView, progress, updateWord }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [filterTab, setFilterTab] = useState('ALL'); 
 
     const stats = {
-        ALL: words.length,
-        KNOWN: words.filter(w => w.score >= 5).length,
-        WEAK: words.filter(w => w.score >= 3 && w.score <= 4).length,
-        LEARN: words.filter(w => w.score >= 1 && w.score <= 2).length
+        ALL: MASTER_WORDS.length,
+        KNOWN: MASTER_WORDS.filter(w => (progress[w.id]?.status === STATUS.KNOWN)).length,
+        WEAK: MASTER_WORDS.filter(w => (progress[w.id]?.status === STATUS.WEAK)).length,
+        LEARN: MASTER_WORDS.filter(w => (!progress[w.id]?.status || progress[w.id]?.status === STATUS.UNSEEN || progress[w.id]?.status === STATUS.LEARN)).length
     };
 
-    const filteredWords = words.filter(word => {
-        const score = word.score;
+    const filteredWords = MASTER_WORDS.filter(word => {
+        const status = progress[word.id]?.status || STATUS.UNSEEN;
         const matchesSearch = word.english.toLowerCase().includes(searchTerm.toLowerCase()) || 
                               word.hebrew.includes(searchTerm);
         
         if (!matchesSearch) return false;
 
         if (filterTab === 'ALL') return true;
-        if (filterTab === 'KNOWN') return score >= 5;
-        if (filterTab === 'WEAK') return score >= 3 && score <= 4;
-        if (filterTab === 'LEARN') return score <= 2; // Includes Unseen (0) + Learn (1-2)
+        if (filterTab === 'KNOWN') return status === STATUS.KNOWN;
+        if (filterTab === 'WEAK') return status === STATUS.WEAK;
+        if (filterTab === 'LEARN') return (status === STATUS.UNSEEN || status === STATUS.LEARN);
         return true;
     });
 
-    const getStatusIcon = (score) => {
-        if (score >= 5) return <Check size={18} className="text-green-500"/>;
-        if (score >= 3) return <Eye size={18} className="text-amber-500"/>;
-        if (score >= 1) return <BookOpen size={18} className="text-indigo-400"/>;
-        return <CircleDashed size={18} className="text-gray-300"/>;
+    const getStatusIcon = (status) => {
+        switch(status) {
+            case STATUS.KNOWN: return <Check size={18} className="text-green-500"/>;
+            case STATUS.WEAK: return <Eye size={18} className="text-amber-500"/>;
+            case STATUS.LEARN: return <BookOpen size={18} className="text-indigo-400"/>;
+            default: return <div className="w-4 h-4 rounded-full border-2 border-gray-300"></div>;
+        }
     };
 
     return (
         <div className="h-[100dvh] flex flex-col bg-gray-50" dir="rtl">
             <Header title="מאגר מילים" onBack={() => setView('DASHBOARD')} subtitle={`סה"כ ${stats.ALL} מילים`} />
+
             <div className="bg-white p-4 shadow-sm z-10 space-y-3">
                 <div className="relative">
                     <input 
                         type="text" 
-                        placeholder="חפש מילה..." 
+                        placeholder="חפש מילה באנגלית או בעברית..." 
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         className="w-full bg-gray-100 text-gray-800 rounded-xl py-3 px-10 border-none outline-none focus:ring-2 focus:ring-indigo-500 transition-all text-right"
                     />
-                    <div className="absolute top-3 right-3 text-gray-400"><SearchIcon size={20}/></div>
-                    {searchTerm && <button onClick={() => setSearchTerm('')} className="absolute top-3 left-3 text-gray-400"><X size={20}/></button>}
+                    <div className="absolute top-3 right-3 text-gray-400">
+                        <SearchIcon size={20}/> 
+                    </div>
+                    {searchTerm && (
+                        <button onClick={() => setSearchTerm('')} className="absolute top-3 left-3 text-gray-400">
+                            <X size={20}/>
+                        </button>
+                    )}
                 </div>
+
                 <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                    {[{ id: 'ALL', label: 'הכל', count: stats.ALL }, { id: 'KNOWN', label: 'יודע', count: stats.KNOWN, color: 'green' }, { id: 'WEAK', label: 'לחיזוק', count: stats.WEAK, color: 'amber' }, { id: 'LEARN', label: 'ללמידה', count: stats.LEARN, color: 'indigo' }].map(tab => (
-                        <button key={tab.id} onClick={() => setFilterTab(tab.id)} className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors flex items-center gap-2 border ${filterTab === tab.id ? `bg-${tab.color || 'gray'}-100 text-${tab.color || 'gray'}-800 border-${tab.color || 'gray'}-300` : 'bg-white text-gray-500 border-gray-100'}`}>{tab.label} <span className="text-xs opacity-60">({tab.count})</span></button>
+                    {[
+                        { id: 'ALL', label: 'הכל', count: stats.ALL },
+                        { id: 'KNOWN', label: 'יודע', count: stats.KNOWN, color: 'green' },
+                        { id: 'WEAK', label: 'לחיזוק', count: stats.WEAK, color: 'amber' },
+                        { id: 'LEARN', label: 'ללמידה', count: stats.LEARN, color: 'indigo' }
+                    ].map(tab => (
+                        <button 
+                            key={tab.id}
+                            onClick={() => setFilterTab(tab.id)}
+                            className={`px-4 py-2 rounded-lg text-sm font-bold whitespace-nowrap transition-colors flex items-center gap-2 border
+                                ${filterTab === tab.id 
+                                    ? `bg-${tab.color || 'gray'}-100 text-${tab.color || 'gray'}-800 border-${tab.color || 'gray'}-300` 
+                                    : 'bg-white text-gray-500 border-gray-100 hover:bg-gray-50'}`}
+                        >
+                            {tab.label} <span className="text-xs opacity-60">({tab.count})</span>
+                        </button>
                     ))}
                 </div>
             </div>
+
             <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                {filteredWords.map(word => (
-                    <div key={word.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                        <div className="text-right">
-                            <div className="font-bold text-gray-800 text-lg leading-tight" dir="ltr">{word.english}</div>
-                            <div className="text-gray-500 text-sm mt-0.5">{word.hebrew}</div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                             <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50">{getStatusIcon(word.score)}</div>
-                        </div>
+                {filteredWords.length === 0 ? (
+                    <div className="text-center text-gray-400 mt-10 flex flex-col items-center">
+                        <div className="bg-gray-100 p-4 rounded-full mb-3"><SearchIcon size={32} className="opacity-50"/></div>
+                        <p>לא נמצאו מילים תואמות</p>
                     </div>
-                ))}
+                ) : (
+                    filteredWords.map(word => {
+                        const status = progress[word.id]?.status || STATUS.UNSEEN;
+                        const isSpelling = progress[word.id]?.flag_spelling;
+                        return (
+                            <div key={word.id} className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group active:scale-[0.99] transition-transform">
+                                <div className="flex-1 flex flex-col items-start text-right">
+                                    <span className="font-bold text-gray-800 text-lg leading-tight" dir="ltr">{word.english}</span>
+                                    <span className="text-gray-500 text-sm mt-0.5">{word.hebrew}</span>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        onClick={(e) => { e.stopPropagation(); updateWord(word.id, { flag_spelling: !isSpelling }); }}
+                                        className={`p-2 rounded-lg transition-colors border ${isSpelling ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-gray-50 text-gray-300 border-gray-100'}`}
+                                    >
+                                        <Languages size={18}/>
+                                    </button>
+                                    <span className="text-xs font-medium text-gray-300 bg-gray-50 px-2 py-1 rounded-md min-w-[3rem] text-center">
+                                        {word.partOfSpeech}
+                                    </span>
+                                    <div className="w-8 h-8 flex items-center justify-center rounded-full bg-gray-50">
+                                        {getStatusIcon(status)}
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })
+                )}
             </div>
         </div>
     );
 };
 
-const ProgressView = ({ setView, words, updateWord }) => {
-    const [activeTab, setActiveTab] = useState('UNSEEN');
-    const [showSpellingOnly, setShowSpellingOnly] = useState(false);
+// =================================================================================
+// PROGRESS VIEW
+// =================================================================================
+const ProgressView = ({ setView, progress, updateWord }) => {
+    const [activeTab, setActiveTab] = useState('UNSEEN'); // UNSEEN, LEARN, WEAK, KNOWN
+    const [showSpellingOnly, setShowSpellingOnly] = useState(false); // Filter toggle
     const [editingWord, setEditingWord] = useState(null);
 
     const stats = {
-        known: words.filter(w => w.score >= 5).length,
-        weak: words.filter(w => w.score >= 3 && w.score <= 4).length,
-        learn: words.filter(w => w.score >= 1 && w.score <= 2).length,
-        unseen: words.filter(w => w.score === 0).length,
+        total: MASTER_WORDS.length,
+        known: MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.KNOWN).length,
+        weak: MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.WEAK).length,
+        learn: MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.LEARN).length,
+        unseen: MASTER_WORDS.filter(w => !progress[w.id]?.status || progress[w.id]?.status === STATUS.UNSEEN).length,
+        spelling: MASTER_WORDS.filter(w => progress[w.id]?.flag_spelling).length
     };
 
-    const displayWords = words.filter(w => {
-        if (showSpellingOnly) return w.flag_spelling === true;
-        const score = w.score;
-        if (activeTab === 'KNOWN') return score >= 5;
-        if (activeTab === 'WEAK') return score >= 3 && score <= 4;
-        if (activeTab === 'LEARN') return score >= 1 && score <= 2;
-        if (activeTab === 'UNSEEN') return score === 0;
+    const displayWords = MASTER_WORDS.filter(w => {
+        if (showSpellingOnly) {
+            return progress[w.id]?.flag_spelling === true;
+        }
+
+        const s = progress[w.id]?.status || STATUS.UNSEEN;
+        if (activeTab === 'KNOWN') return s === STATUS.KNOWN;
+        if (activeTab === 'WEAK') return s === STATUS.WEAK;
+        if (activeTab === 'LEARN') return s === STATUS.LEARN;
+        if (activeTab === 'UNSEEN') return s === STATUS.UNSEEN;
         return false;
     });
 
-    const handleManualUpdate = (newScore) => {
+    const handleManualUpdate = (newStatus) => {
         if (editingWord) {
-            updateWord(editingWord.id, { score: newScore });
+            updateWord(editingWord.id, { status: newStatus, streak: 0 });
             setEditingWord(null);
         }
     };
 
+    const toggleSpellingFlag = (e, wordId) => {
+        e.stopPropagation();
+        const current = progress[wordId]?.flag_spelling || false;
+        updateWord(wordId, { flag_spelling: !current });
+    };
+
+    const TabButton = ({ id, label, color, icon: Icon, count }) => (
+        <button 
+            onClick={() => { setActiveTab(id); setShowSpellingOnly(false); }} 
+            className={`flex-1 flex flex-col items-center justify-center py-3 rounded-xl transition-all border-2
+            ${activeTab === id && !showSpellingOnly 
+                ? `bg-${color}-50 border-${color}-200 text-${color}-700 shadow-sm` 
+                : 'bg-white border-transparent text-gray-400 hover:bg-gray-50'}`}
+        >
+            <span className="text-xl font-bold">{count}</span>
+            <span className="text-xs font-medium flex items-center gap-1"><Icon size={12}/> {label}</span>
+        </button>
+    );
+
     return (
         <div className="h-[100dvh] flex flex-col bg-gray-50" dir="rtl">
-             <Header title={showSpellingOnly ? "רשימת איות" : "התקדמות"} onBack={() => setView('DASHBOARD')} subtitle="ניהול סטטוסים" 
-                 extraLeft={<button onClick={() => setShowSpellingOnly(!showSpellingOnly)} className={`p-2 rounded-lg font-bold flex items-center gap-2 text-sm border ${showSpellingOnly ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white text-gray-600 border-gray-200'}`}><Languages size={18}/> {showSpellingOnly ? 'סגור' : 'איות'}</button>}
-             />
-             {!showSpellingOnly && (
+            <Header 
+                title={showSpellingOnly ? "רשימת איות" : "התקדמות"} 
+                onBack={() => setView('DASHBOARD')} 
+                subtitle={showSpellingOnly ? "מילים שסומנו לתרגול איות" : "ניהול סטטוסים"}
+                extraLeft={
+                    <button 
+                        onClick={() => setShowSpellingOnly(!showSpellingOnly)}
+                        className={`p-2 rounded-lg font-bold transition-all flex items-center gap-2 text-sm border
+                        ${showSpellingOnly 
+                            ? 'bg-indigo-600 text-white border-indigo-600 shadow-md' 
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-indigo-300'}`}
+                    >
+                        <Languages size={18}/> {showSpellingOnly ? 'סגור איות' : 'רשימת איות'}
+                    </button>
+                }
+            />
+
+            {!showSpellingOnly && (
                 <div className="p-4 grid grid-cols-4 gap-2">
-                    <button onClick={() => setActiveTab('UNSEEN')} className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 ${activeTab === 'UNSEEN' ? 'bg-gray-50 border-gray-200 text-gray-700' : 'bg-white border-transparent text-gray-400'}`}><span className="text-xl font-bold">{stats.unseen}</span><span className="text-xs">חדש</span></button>
-                    <button onClick={() => setActiveTab('LEARN')} className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 ${activeTab === 'LEARN' ? 'bg-indigo-50 border-indigo-200 text-indigo-700' : 'bg-white border-transparent text-gray-400'}`}><span className="text-xl font-bold">{stats.learn}</span><span className="text-xs">למידה</span></button>
-                    <button onClick={() => setActiveTab('WEAK')} className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 ${activeTab === 'WEAK' ? 'bg-amber-50 border-amber-200 text-amber-700' : 'bg-white border-transparent text-gray-400'}`}><span className="text-xl font-bold">{stats.weak}</span><span className="text-xs">לחיזוק</span></button>
-                    <button onClick={() => setActiveTab('KNOWN')} className={`flex-1 flex flex-col items-center py-3 rounded-xl border-2 ${activeTab === 'KNOWN' ? 'bg-green-50 border-green-200 text-green-700' : 'bg-white border-transparent text-gray-400'}`}><span className="text-xl font-bold">{stats.known}</span><span className="text-xs">יודע</span></button>
+                    <TabButton id="UNSEEN" label="חדש" count={stats.unseen} color="gray" icon={CircleDashed}/>
+                    <TabButton id="LEARN" label="ללמידה" count={stats.learn} color="indigo" icon={BookOpen}/>
+                    <TabButton id="WEAK" label="לחיזוק" count={stats.weak} color="amber" icon={Eye}/>
+                    <TabButton id="KNOWN" label="יודע" count={stats.known} color="green" icon={Check}/>
                 </div>
-             )}
-             <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
-                 {displayWords.map(word => (
-                     <div key={word.id} onClick={() => setEditingWord(word)} className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center cursor-pointer">
-                         <div className="text-right">
-                             <div className="font-bold text-gray-800 text-lg" dir="ltr">{word.english}</div>
-                             <div className="text-gray-500 text-sm">{word.hebrew}</div>
-                         </div>
-                         <div className="flex items-center gap-3">
-                             {word.flag_spelling && <Languages size={16} className="text-indigo-600"/>}
-                             <Edit3 size={18} className="text-gray-300"/>
-                         </div>
-                     </div>
-                 ))}
-             </div>
-             {editingWord && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/20 backdrop-blur-sm p-4" onClick={() => setEditingWord(null)}>
-                    <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <h3 className="text-2xl font-bold text-gray-800 text-center mb-6" dir="ltr">{editingWord.english}</h3>
-                        <div className="space-y-3">
-                            <Button variant="outline" onClick={() => handleManualUpdate(5)} className="w-full border-green-200 text-green-700 justify-between"><span>יודע (KNOWN)</span> <Check size={18}/></Button>
-                            <Button variant="outline" onClick={() => handleManualUpdate(3)} className="w-full border-amber-200 text-amber-700 justify-between"><span>לחיזוק (WEAK)</span> <Eye size={18}/></Button>
-                            <Button variant="outline" onClick={() => handleManualUpdate(1)} className="w-full border-indigo-200 text-indigo-700 justify-between"><span>למידה (LEARN)</span> <BookOpen size={18}/></Button>
-                            <Button variant="outline" onClick={() => handleManualUpdate(0)} className="w-full border-gray-200 text-gray-500 justify-between"><span>חדש (UNSEEN)</span> <CircleDashed size={18}/></Button>
+            )}
+
+            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-2">
+                {displayWords.length === 0 ? (
+                    <div className="text-center text-gray-400 mt-20 flex flex-col items-center">
+                        <div className="bg-gray-100 p-4 rounded-full mb-3"><CircleDashed size={32} className="opacity-50"/></div>
+                        <p>{showSpellingOnly ? 'לא סומנו מילים לאיות' : 'אין מילים ברשימה זו'}</p>
+                    </div>
+                ) : (
+                    displayWords.map(word => {
+                         const isSpelling = progress[word.id]?.flag_spelling;
+                         return (
+                            <div 
+                                key={word.id} 
+                                onClick={() => setEditingWord(word)}
+                                className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center group active:scale-[0.99] transition-transform cursor-pointer"
+                            >
+                                <div className="text-right">
+                                    <div className="font-bold text-gray-800 text-lg leading-tight" dir="ltr">{word.english}</div>
+                                    <div className="text-gray-500 text-sm">{word.hebrew}</div>
+                                </div>
+                                
+                                <div className="flex items-center gap-3">
+                                    <button 
+                                        onClick={(e) => toggleSpellingFlag(e, word.id)}
+                                        className={`p-2 rounded-full transition-colors border ${isSpelling ? 'bg-indigo-100 text-indigo-600 border-indigo-200' : 'bg-gray-50 text-gray-300 border-transparent hover:border-gray-200'}`}
+                                    >
+                                        <Languages size={18}/>
+                                    </button>
+                                    <div className="w-8 h-8 flex items-center justify-center text-gray-300">
+                                        <Edit3 size={18}/>
+                                    </div>
+                                </div>
+                            </div>
+                         );
+                    })
+                )}
+            </div>
+
+            {editingWord && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/20 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setEditingWord(null)}>
+                    <div className="bg-white w-full max-w-sm rounded-3xl p-6 shadow-2xl animate-in slide-in-from-bottom duration-300" onClick={e => e.stopPropagation()}>
+                        <div className="text-center mb-6">
+                            <h3 className="text-2xl font-bold text-gray-800" dir="ltr">{editingWord.english}</h3>
+                            <p className="text-gray-500">{editingWord.hebrew}</p>
+                            <div className="mt-4 inline-block bg-gray-100 px-3 py-1 rounded-full text-xs font-bold text-gray-500">
+                                עריכת סטטוס
+                            </div>
                         </div>
-                        <button onClick={() => setEditingWord(null)} className="mt-6 w-full py-3 text-gray-400 font-bold">ביטול</button>
+                        
+                        <div className="space-y-3">
+                            <Button variant="outline" onClick={() => handleManualUpdate(STATUS.KNOWN)} className="w-full border-green-200 hover:bg-green-50 text-green-700 justify-between">
+                                <span>יודע (KNOWN)</span> <Check size={18} className="bg-green-200 rounded-full p-0.5"/>
+                            </Button>
+                            <Button variant="outline" onClick={() => handleManualUpdate(STATUS.WEAK)} className="w-full border-amber-200 hover:bg-amber-50 text-amber-700 justify-between">
+                                <span>לחיזוק (WEAK)</span> <Eye size={18} className="bg-amber-200 rounded-full p-0.5"/>
+                            </Button>
+                            <Button variant="outline" onClick={() => handleManualUpdate(STATUS.LEARN)} className="w-full border-indigo-200 hover:bg-indigo-50 text-indigo-700 justify-between">
+                                <span>ללמידה (LEARN)</span> <BookOpen size={18} className="bg-indigo-200 rounded-full p-0.5"/>
+                            </Button>
+                             <Button variant="outline" onClick={() => handleManualUpdate(STATUS.UNSEEN)} className="w-full border-gray-200 hover:bg-gray-50 text-gray-500 justify-between">
+                                <span>לא נראה (UNSEEN)</span> <CircleDashed size={18} className="bg-gray-200 rounded-full p-0.5"/>
+                            </Button>
+                        </div>
+
+                        <button onClick={() => setEditingWord(null)} className="mt-6 w-full py-3 text-gray-400 font-bold hover:text-gray-600">
+                            ביטול
+                        </button>
                     </div>
                 </div>
-             )}
+            )}
         </div>
     );
 };
 
-const TasksView = ({ setView, words }) => {
-    // לוגיקה זהה למקור - אך שואבת מ-Score
+// =================================================================================
+// TASKS VIEW (משימות ותרגול + מחולל משופר)
+// =================================================================================
+const TasksView = ({ setView, progress }) => {
     const [learnCount, setLearnCount] = useState(10);
     const [reviewCount, setReviewCount] = useState(20);
     const [generatedList, setGeneratedList] = useState(null);
+    const [isCopied, setIsCopied] = useState(false);
+
+    const availableStats = {
+        learn: MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.LEARN).length,
+        weak: MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.WEAK).length,
+        known: MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.KNOWN).length
+    };
+    
+    const totalActive = availableStats.learn + availableStats.weak + availableStats.known;
+    const isPoolEmpty = totalActive < 5;
 
     const generateList = () => {
-        const poolLearn = words.filter(w => w.score >= 1 && w.score <= 2);
-        const poolWeak = words.filter(w => w.score >= 3 && w.score <= 4);
-        const poolKnown = words.filter(w => w.score >= 5);
+        let poolLearn = MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.LEARN);
+        let poolWeak = MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.WEAK);
+        let poolKnown = MASTER_WORDS.filter(w => progress[w.id]?.status === STATUS.KNOWN);
 
         let listA = poolLearn.sort(() => Math.random() - 0.5).slice(0, learnCount);
         if (listA.length < learnCount) {
-            listA = [...listA, ...poolWeak.sort(() => Math.random() - 0.5).slice(0, learnCount - listA.length)];
+            const needed = learnCount - listA.length;
+            const fromWeak = poolWeak.sort(() => Math.random() - 0.5).slice(0, needed);
+            listA = [...listA, ...fromWeak];
         }
+
         const usedIds = new Set(listA.map(w => w.id));
-        const poolReview = [...poolWeak, ...poolKnown].filter(w => !usedIds.has(w.id));
-        const listB = poolReview.sort(() => Math.random() - 0.5).slice(0, reviewCount);
+        let poolReview = [...poolWeak, ...poolKnown].filter(w => !usedIds.has(w.id));
+        let listB = poolReview.sort(() => Math.random() - 0.5).slice(0, reviewCount);
 
         const date = new Date().toLocaleDateString('he-IL');
-        let content = `📅 רשימת תרגול\nתאריך: ${date}\n===================\n\n`;
-        if (listA.length > 0) { content += `🔵 מיקוד למידה (${listA.length})\n---\n`; listA.forEach((w, i) => content += `${i+1}. ${w.english} - ${w.hebrew}\n`); content += `\n`; }
-        if (listB.length > 0) { content += `🟢 חזרה (${listB.length})\n---\n`; listB.forEach((w, i) => content += `${i+1}. ${w.english} - ${w.hebrew}\n`); }
+        
+        let content = `📅 רשימת תרגול - VocabMaster\nתאריך: ${date}\n`;
+        content += `===================================\n\n`;
+        
+        if (listA.length > 0) {
+            content += `🔵 מיקוד למידה (${listA.length} מילים)\n`;
+            content += `-----------------------------------\n`;
+            listA.forEach((w, i) => content += `${i+1}. ${w.english}  -  ${w.hebrew}\n`);
+            content += `\n\n`;
+        }
+
+        if (listB.length > 0) {
+            content += `🟢 חזרה ושינון (${listB.length} מילים)\n`;
+            content += `-----------------------------------\n`;
+            listB.forEach((w, i) => content += `${i+1}. ${w.english}  -  ${w.hebrew}\n`);
+        }
+
+        if (listA.length === 0 && listB.length === 0) {
+            content = "לא נמצאו מילים מתאימות לייצוא על פי ההגדרות.";
+        }
+
         setGeneratedList(content);
+        setIsCopied(false);
+    };
+
+    const copyToClipboard = () => {
+        navigator.clipboard.writeText(generatedList);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+    };
+
+    const downloadFile = () => {
+        const element = document.createElement("a");
+        const file = new Blob(['\uFEFF' + generatedList], {type: 'text/plain;charset=utf-8'});
+        element.href = URL.createObjectURL(file);
+        element.download = `Vocab_List_${new Date().toLocaleDateString('he-IL').replace(/\./g,'-')}.txt`;
+        document.body.appendChild(element);
+        element.click();
     };
 
     return (
         <div className="h-[100dvh] flex flex-col bg-gray-50" dir="rtl">
-            <Header title="משימות" onBack={() => setView('DASHBOARD')} subtitle="מחולל תרגול" />
+            <Header title="משימות ותרגול" onBack={() => setView('DASHBOARD')} subtitle="כלים ללמידה אקטיבית" />
+            
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
-                 <Button variant="outline" onClick={() => setView('GAME_SPELLING')} className="w-full py-6 text-xl justify-between px-6 border-indigo-100">
-                    <span className="flex items-center gap-3 font-bold text-gray-800"><Edit3 className="text-indigo-600"/> אימון איות</span>
-                    <Play size={20} className="text-gray-300 transform rotate-180"/>
+                
+                <Button 
+                    variant="outline" 
+                    onClick={() => setView('GAME_SPELLING')} 
+                    className="w-full py-6 text-xl justify-between px-6 group border-b-4 active:border-b-2 active:translate-y-0.5 border-indigo-100 hover:border-indigo-200"
+                >
+                    <div className="flex flex-col items-start gap-1">
+                        <span className="flex items-center gap-3 font-bold text-gray-800">
+                            <Edit3 className="text-indigo-600" size={24}/> אימון איות
+                        </span>
+                        <span className="text-xs text-gray-400 font-normal mr-9">הקלדת מילים שסומנו לאיות</span>
+                    </div>
+                    <Play size={20} className="text-gray-300 group-hover:text-indigo-600 transform rotate-180"/>
                 </Button>
+
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
-                    <h2 className="text-xl font-bold text-gray-800 mb-4 flex gap-2"><ClipboardList className="text-teal-600"/> מחולל משימות</h2>
-                    {!generatedList ? (
-                        <div className="space-y-6">
-                             <div><label className="font-bold text-gray-700 block mb-2">מיקוד למידה: {learnCount}</label><input type="range" min="5" max="30" value={learnCount} onChange={e=>setLearnCount(Number(e.target.value))} className="w-full accent-blue-600"/></div>
-                             <div><label className="font-bold text-gray-700 block mb-2">חזרה: {reviewCount}</label><input type="range" min="10" max="50" value={reviewCount} onChange={e=>setReviewCount(Number(e.target.value))} className="w-full accent-green-600"/></div>
-                             <Button onClick={generateList} className="w-full bg-teal-600 hover:bg-teal-700">צור רשימה</Button>
+                    <div className="flex items-center gap-2 mb-4 border-b pb-4">
+                        <ClipboardList className="text-teal-600" size={24}/>
+                        <h2 className="text-xl font-bold text-gray-800">מחולל משימות</h2>
+                    </div>
+
+                    {isPoolEmpty ? (
+                        <div className="text-center py-6 bg-red-50 rounded-xl border border-red-100">
+                            <CircleDashed className="mx-auto text-red-300 mb-2" size={32}/>
+                            <h3 className="font-bold text-red-800">המאגרים ריקים</h3>
+                            <p className="text-sm text-red-600 mt-1 px-4">
+                                כדי לייצר משימות, עליך קודם לסווג מילים ממאגר "חדש" (Unseen) במשחק המיון.
+                            </p>
+                            <Button onClick={() => setView('GAME_SWIPE')} className="mt-4 mx-auto text-sm" variant="danger">עבור למיון מילים</Button>
                         </div>
                     ) : (
-                        <div>
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm font-mono whitespace-pre-wrap h-64 overflow-y-auto mb-4" dir="ltr">{generatedList}</div>
-                            <div className="flex gap-2">
-                                <Button onClick={() => navigator.clipboard.writeText(generatedList)} variant="outline" className="flex-1"><Copy size={18}/> העתק</Button>
-                                <Button onClick={() => setGeneratedList(null)} variant="ghost">חדש</Button>
-                            </div>
-                        </div>
+                        <>
+                            {!generatedList && (
+                                <div className="space-y-6">
+                                    <div>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="font-bold text-gray-700">מיקוד למידה</label>
+                                            <span className="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-sm font-bold">{learnCount}</span>
+                                        </div>
+                                        <input 
+                                            type="range" min="10" max="30" step="1" 
+                                            value={learnCount} 
+                                            onChange={(e) => setLearnCount(parseInt(e.target.value))}
+                                            className="w-full accent-blue-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <p className="text-xs text-gray-400 mt-1">מושך מ-'ללמידה' ומשלים מ-'לחיזוק'</p>
+                                    </div>
+
+                                    <div>
+                                        <div className="flex justify-between mb-2">
+                                            <label className="font-bold text-gray-700">חזרה ותרגול</label>
+                                            <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded text-sm font-bold">{reviewCount}</span>
+                                        </div>
+                                        <input 
+                                            type="range" min="10" max="100" step="5" 
+                                            value={reviewCount} 
+                                            onChange={(e) => setReviewCount(parseInt(e.target.value))}
+                                            className="w-full accent-green-600 h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <p className="text-xs text-gray-400 mt-1">מושך מ-'לחיזוק' ו-'יודע'</p>
+                                    </div>
+
+                                    <Button onClick={generateList} className="w-full py-4 text-lg bg-teal-600 hover:bg-teal-700 shadow-teal-200">
+                                        צור רשימה
+                                    </Button>
+                                </div>
+                            )}
+
+                            {generatedList && (
+                                <div className="animate-in fade-in slide-in-from-bottom-4 duration-300">
+                                    <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-sm font-mono whitespace-pre-wrap h-64 overflow-y-auto mb-4 text-gray-800 leading-relaxed" dir="ltr">
+                                        {generatedList}
+                                    </div>
+                                    
+                                    <div className="flex gap-2">
+                                        <Button onClick={copyToClipboard} variant="outline" className={`flex-1 ${isCopied ? 'border-green-500 text-green-600 bg-green-50' : ''}`}>
+                                            {isCopied ? <Check size={18}/> : <Copy size={18}/>}
+                                            {isCopied ? 'הועתק!' : 'העתק'}
+                                        </Button>
+                                        <Button onClick={downloadFile} variant="outline" className="flex-1">
+                                            <Download size={18}/> קובץ
+                                        </Button>
+                                    </div>
+                                    <button onClick={() => setGeneratedList(null)} className="w-full mt-4 text-gray-400 text-sm hover:text-gray-600">
+                                        צור רשימה חדשה
+                                    </button>
+                                </div>
+                            )}
+                        </>
                     )}
                 </div>
             </div>
@@ -1284,22 +1245,47 @@ const TasksView = ({ setView, words }) => {
     );
 };
 
+// =================================================================================
+// SUB-VIEWS (Games Menu)
+// =================================================================================
+
 const GamesMenuView = ({ setView }) => (
     <div className="h-[100dvh] flex flex-col bg-gray-50" dir="rtl">
-        <Header title="מבדקים" onBack={() => setView('DASHBOARD')} subtitle="בחר משחק" />
+        <Header title="מבדקים ומשחקים" onBack={() => setView('DASHBOARD')} subtitle="בחר משחק" />
         <div className="p-6 space-y-4">
-             <Button variant="outline" onClick={() => setView('GAME_SWIPE')} className="w-full py-6 text-xl justify-between px-6"><span className="flex items-center gap-3"><BookOpen className="text-indigo-600"/> Swipe</span><Play size={16} className="text-gray-300 transform rotate-180"/></Button>
-             <Button variant="outline" onClick={() => setView('GAME_QUIZ')} className="w-full py-6 text-xl justify-between px-6"><span className="flex items-center gap-3"><Zap className="text-orange-500"/> Quiz</span><Play size={16} className="text-gray-300 transform rotate-180"/></Button>
-             <Button variant="outline" onClick={() => setView('GAME_MATCH')} className="w-full py-6 text-xl justify-between px-6"><span className="flex items-center gap-3"><Brain className="text-purple-600"/> Match</span><Play size={16} className="text-gray-300 transform rotate-180"/></Button>
+             <Button variant="outline" onClick={() => setView('GAME_SWIPE')} className="w-full py-6 text-xl justify-between px-6 group border-b-4 active:border-b-2 active:translate-y-0.5">
+                <span className="flex items-center gap-3"><BookOpen className="text-indigo-600"/> Swipe</span>
+                <Play size={16} className="text-gray-300 group-hover:text-indigo-600 transform rotate-180"/>
+            </Button>
+            <Button variant="outline" onClick={() => setView('GAME_QUIZ')} className="w-full py-6 text-xl justify-between px-6 group border-b-4 active:border-b-2 active:translate-y-0.5">
+                <span className="flex items-center gap-3"><Zap className="text-orange-500"/> Quiz</span>
+                <Play size={16} className="text-gray-300 group-hover:text-orange-500 transform rotate-180"/>
+            </Button>
+            <Button variant="outline" onClick={() => setView('GAME_MATCH')} className="w-full py-6 text-xl justify-between px-6 group border-b-4 active:border-b-2 active:translate-y-0.5">
+                <span className="flex items-center gap-3"><Brain className="text-purple-600"/> Match</span>
+                <Play size={16} className="text-gray-300 group-hover:text-purple-600 transform rotate-180"/>
+            </Button>
         </div>
     </div>
 );
 
+// =================================================================================
+// MAIN DASHBOARD (מעודכן עם קרדיט)
+// =================================================================================
+
 const DashboardView = ({ setView, user }) => {
     const MenuCard = ({ icon: Icon, title, subtitle, color, onClick }) => (
-        <button onClick={onClick} className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform h-40 w-full outline-none">
-            <div className={`p-4 rounded-full bg-${color}-50`}><Icon size={32} className={`text-${color}-600`} /></div>
-            <div className="text-center"><h3 className="font-bold text-gray-800 text-lg">{title}</h3><p className="text-gray-400 text-xs mt-1">{subtitle}</p></div>
+        <button 
+            onClick={onClick}
+            className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100 flex flex-col items-center justify-center gap-3 active:scale-95 transition-transform h-40 w-full group outline-none focus:outline-none"
+        >
+            <div className={`p-4 rounded-full bg-${color}-50 group-hover:bg-${color}-100 transition-colors`}>
+                <Icon size={32} className={`text-${color}-600 stroke-[1.5]`} />
+            </div>
+            <div className="text-center">
+                <h3 className="font-bold text-gray-800 text-lg">{title}</h3>
+                <p className="text-gray-400 text-xs mt-1">{subtitle}</p>
+            </div>
         </button>
     );
 
@@ -1307,11 +1293,17 @@ const DashboardView = ({ setView, user }) => {
         <div className="h-[100dvh] bg-gray-50 flex flex-col font-sans" dir="rtl">
             <div className="bg-white p-6 pt-12 pb-6 shadow-sm border-b border-gray-100 sticky top-0 z-10">
                 <div className="flex justify-between items-center mb-4">
-                    <div><h1 className="text-2xl font-bold text-gray-800">שלום, {user}</h1><p className="text-gray-400 text-sm">המשימה: 700 מילים</p></div>
-                    <Settings size={28} className="text-gray-300"/>
+                    <div>
+                        <h1 className="text-2xl font-bold text-gray-800">שלום, {user}</h1>
+                        <p className="text-gray-400 text-sm">המשימה: 700 מילים</p>
+                    </div>
+                    <button className="text-gray-300 hover:text-indigo-600 transition-colors"><Settings size={28} strokeWidth={1.5}/></button>
                 </div>
-                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden"><div className="bg-indigo-600 h-full w-[10%] rounded-full shadow-[0_0_10px_rgba(79,70,229,0.3)]"></div></div>
+                <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
+                    <div className="bg-indigo-600 h-full w-[10%] rounded-full shadow-[0_0_10px_rgba(79,70,229,0.3)]"></div>
+                </div>
             </div>
+
             <div className="flex-1 p-6 overflow-y-auto flex flex-col">
                 <div className="grid grid-cols-2 gap-4 mb-6">
                     <MenuCard icon={BookOpen} title="מאגר מילים" subtitle="כל הרשימה" color="indigo" onClick={() => setView('WORD_BANK')}/>
@@ -1319,9 +1311,15 @@ const DashboardView = ({ setView, user }) => {
                     <MenuCard icon={ClipboardList} title="משימות" subtitle="תרגול וייצוא" color="indigo" onClick={() => setView('TASKS')}/>
                     <MenuCard icon={TrendingUp} title="התקדמות" subtitle="ניהול ידע" color="indigo" onClick={() => setView('PROGRESS')}/>
                 </div>
+                
+                {/* כאן הוספנו את הקרדיט בתחתית התפריט */}
                 <div className="mt-auto pt-4 text-center">
-                    <p className="text-[10px] text-gray-300">גרסה 3.2 • נבנה באהבה</p>
-                    <p className="text-xs text-gray-400 font-medium mt-1">✨ שכוייח לעויזר, אהרן, וג'מיני</p>
+                    <p className="text-[10px] text-gray-300">
+                        גרסה 3.1 • נבנה באהבה
+                    </p>
+                    <p className="text-xs text-gray-400 font-medium mt-1">
+                        ✨ שכוייח לעויזר, אהרן, וג'מיני
+                    </p>
                 </div>
             </div>
         </div>
@@ -1331,68 +1329,22 @@ const DashboardView = ({ setView, user }) => {
 // --- APP ROOT ---
 export default function VocabMasterApp() {
   const [view, setView] = useState('DASHBOARD');
-  const [words, setWords] = useState([]); // Array of word objects with Score
+  const [progress, setProgress] = useState({});
   const [user, setUser] = useState(null);
-  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const savedProgress = localStorage.getItem('vocab_offline_progress');
     const savedUser = localStorage.getItem('vocab_user_name');
-    const savedSettings = localStorage.getItem('vocab_settings');
-    const savedProgress = JSON.parse(localStorage.getItem('vocab_offline_progress') || '{}');
     
-    // --- MIGRATION LOGIC (STATUS -> SCORE) ---
-    const initializedWords = MASTER_WORDS.map(word => {
-        const userWord = savedProgress[word.id];
-        let score = 0; // Default Unseen
-        let flag_spelling = false;
-
-        if (userWord) {
-             // Case A: New format
-             if (typeof userWord.score === 'number') {
-                 score = userWord.score;
-                 flag_spelling = userWord.flag_spelling || false;
-             } 
-             // Case B: Old format migration
-             else if (userWord.status) {
-                 switch(userWord.status) {
-                     case 'DONE': score = 10; break;
-                     case 'KNOWN': score = 5; break;
-                     case 'WEAK': score = 3; break;
-                     case 'LEARN': score = 1; break;
-                     default: score = 0;
-                 }
-                 flag_spelling = userWord.flag_spelling || false;
-             }
-        }
-        return { ...word, score, flag_spelling };
-    });
-
-    setWords(initializedWords);
+    if (savedProgress) setProgress(JSON.parse(savedProgress));
     if (savedUser) setUser(savedUser);
-    if (savedSettings) setSettings({...DEFAULT_SETTINGS, ...JSON.parse(savedSettings)});
-    setLoading(false);
   }, []);
 
-  // Save changes
-  useEffect(() => {
-    if (!loading && words.length > 0) {
-        const progressMap = words.reduce((acc, word) => {
-            if (word.score > 0 || word.flag_spelling) {
-                acc[word.id] = { score: word.score, flag_spelling: word.flag_spelling };
-            }
-            return acc;
-        }, {});
-        localStorage.setItem('vocab_offline_progress', JSON.stringify(progressMap));
-    }
-  }, [words, loading]);
-
-  useEffect(() => {
-      localStorage.setItem('vocab_settings', JSON.stringify(settings));
-  }, [settings]);
-
   const updateWord = (id, updates) => {
-      setWords(prev => prev.map(w => w.id === id ? { ...w, ...updates } : w));
+    const newProgress = { ...progress };
+    newProgress[id] = { ...(newProgress[id] || {}), ...updates };
+    setProgress(newProgress);
+    localStorage.setItem('vocab_offline_progress', JSON.stringify(newProgress));
   };
 
   const handleLogin = (name) => {
@@ -1401,22 +1353,21 @@ export default function VocabMasterApp() {
       setView('DASHBOARD');
   };
 
-  if (loading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin text-indigo-600"/></div>;
-
   if (!user) {
       return <LoginView onLogin={handleLogin} />;
   }
 
   switch (view) {
       case 'DASHBOARD': return <DashboardView setView={setView} user={user} />;
-      case 'WORD_BANK': return <WordBankView setView={setView} words={words} updateWord={updateWord} />;
+      case 'WORD_BANK': return <WordBankView setView={setView} progress={progress} updateWord={updateWord} />;
       case 'GAMES_MENU': return <GamesMenuView setView={setView} />;
-      case 'TASKS': return <TasksView setView={setView} words={words} />;
-      case 'GAME_SPELLING': return <SpellingGame words={words} updateWord={updateWord} setView={setView} />;
-      case 'PROGRESS': return <ProgressView setView={setView} words={words} updateWord={updateWord} />;
-      case 'GAME_SWIPE': return <SwipeGame words={words} updateWord={updateWord} setView={setView} settings={settings} setSettings={setSettings} />;
-      case 'GAME_QUIZ': return <QuizGame words={words} updateWord={updateWord} setView={setView} settings={settings} setSettings={setSettings} />;
-      case 'GAME_MATCH': return <MatchGame words={words} updateWord={updateWord} setView={setView} />;
+      case 'TASKS': return <TasksView setView={setView} progress={progress} />;
+      case 'GAME_SPELLING': return <SpellingGame progress={progress} updateWord={updateWord} setView={setView} />;
+      case 'PROGRESS': return <ProgressView setView={setView} progress={progress} updateWord={updateWord} />;
+      case 'GAME_SWIPE': return <SwipeGame progress={progress} updateWord={updateWord} setView={setView} />;
+      case 'GAME_QUIZ': return <QuizGame progress={progress} updateWord={updateWord} setView={setView} />;
+      case 'GAME_MATCH': return <MatchGame progress={progress} updateWord={updateWord} setView={setView} />;
       default: return <DashboardView setView={setView} user={user} />;
   }
 }
+
