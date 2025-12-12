@@ -635,6 +635,7 @@ const MatchGame = ({ words, updateWord, setView }) => {
     const [hintIndices, setHintIndices] = useState([]);
     const [showSummary, setShowSummary] = useState(false);
     const [sessionResults, setSessionResults] = useState([]);
+    const hintedWords = useRef(new Set()); // מעקב אחרי מילים שנרמזו
     
     const sessionHistory = useRef(new Set()); 
 
@@ -802,8 +803,16 @@ const MatchGame = ({ words, updateWord, setView }) => {
                 setMatchesFound(p => p + 1);
                 
                 let newScore = w1.score;
-                if (w1.score === 0) newScore = 5; 
-                else newScore = w1.score + 1;
+
+                // בדיקה: האם השתמשו ברמז?
+                if (!hintedWords.current.has(c1.wordId)) {
+                    // לא היה רמז -> קידום רגיל (חדש קופץ ל-5)
+                    if (w1.score === 0) newScore = 5; 
+                    else newScore = w1.score + 1;
+                } else {
+                    // היה רמז -> אם זה חדש, עולה ל-1 (Learn). אחרת נשאר במקום.
+                    if (w1.score === 0) newScore = 1;
+                }
                 
                 updateWord(c1.wordId, { score: newScore });
                 addToSummary(c1.wordId, newScore);
@@ -854,6 +863,7 @@ const MatchGame = ({ words, updateWord, setView }) => {
             if (pairIndices.length > 0) break;
         }
         if (pairIndices.length === 2) {
+            hintedWords.current.add(board[pairIndices[0]].wordId); // הוספת המילה לרשימת הרמזים
             setHintIndices(pairIndices);
             setTimeout(() => setHintIndices([]), 800);
         }
